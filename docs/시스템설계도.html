@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>성북 안심 민원 필터 — 시스템 설계도</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* 색은 docs/디자인시스템/nike_design.md 토큰(diagram-design style-guide 에 반영) */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #ffffff; --paper-2: #f5f5f5; --ink: #111111; --muted: #707072; --soft: #9e9ea0;
+      --rule: #e5e5e5; --rule-solid: #cacacb; --accent: #d30005; --link: #1151ff;
+      --sans: 'Geist', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+      --serif: 'Instrument Serif', 'Noto Serif KR', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    @page { size: A4 portrait; margin: 12mm; }
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: var(--sans); background: var(--paper); color: var(--ink); }
+    .page { max-width: 760px; margin: 0 auto; padding: 32px 20px 24px; break-after: page; page-break-after: always; }
+    .page:last-child { break-after: auto; page-break-after: auto; }
+    .eyebrow { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .service { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    h1 { font-family: var(--serif); font-size: 28px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 8px; }
+    .sub { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    svg.dg { width: 100%; height: auto; display: block; }
+    .colophon { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--rule); font-family: var(--sans); font-size: 11px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- ============ 1쪽: 전체 구조 ============ -->
+<section class="page">
+  <p class="service">성북 안심 민원 필터 · AI 는 표시하고 사람이 결정한다</p>
+  <p class="eyebrow">System design · 1 / 3 · Architecture</p>
+  <h1>전체 구조</h1>
+  <p class="sub">이용자는 웹 화면만 씁니다. 화면은 민원·판단 이력을 브라우저에 저장하고, AI·공공 API·답변참고문서는 키를 가진 서버(api)만 부릅니다.</p>
+
+  <svg class="dg" viewBox="0 0 720 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sys-overview-title sys-overview-desc">
+    <title id="sys-overview-title">성북 안심 민원 필터 전체 구조</title>
+    <desc id="sys-overview-desc">이용자가 웹 화면을 쓰고, 화면은 브라우저 저장소와 서버 api 를 거쳐 AI 3사, 국가법령정보, 공공데이터포털, 답변참고문서로 이어지는 시스템 구조.</desc>
+    <defs>
+      <style>
+        .nm { font: 600 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #111111; }
+        .kr { font: 400 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #707072; }
+        .lb { font: 500 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #707072; }
+        .mo { font: 400 9px 'Geist Mono',ui-monospace,monospace; fill: #707072; }
+        .tg { font: 500 8px 'Geist Mono',ui-monospace,monospace; fill: #707072; letter-spacing: 0.08em; }
+      </style>
+      <marker id="o-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#707072"/></marker>
+      <marker id="o-arrow-both" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse"><polygon points="0 0, 8 3, 0 6" fill="#707072"/></marker>
+      <marker id="o-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1151ff"/></marker>
+    </defs>
+    <rect width="100%" height="100%" fill="#ffffff"/>
+
+    <!-- 키 경계(영역) -->
+    <rect x="296" y="228" width="400" height="140" rx="8" fill="rgba(17,17,17,0.02)" stroke="rgba(17,17,17,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="304" y="242" class="tg">ENV KEYS · .env / VERCEL</text>
+
+    <!-- 연결선(상자보다 먼저) -->
+    <line x1="360" y1="80" x2="360" y2="120" stroke="#707072" stroke-width="1.2" marker-end="url(#o-arrow)"/>
+    <line x1="140" y1="184" x2="140" y2="252" stroke="#707072" stroke-width="1.2" marker-start="url(#o-arrow-both)" marker-end="url(#o-arrow-both)"/>
+    <rect x="148" y="208" width="64" height="16" rx="2" fill="#ffffff"/>
+    <text x="152" y="220" class="lb">읽기·쓰기</text>
+    <line x1="500" y1="184" x2="500" y2="252" stroke="#707072" stroke-width="1.2" marker-end="url(#o-arrow)"/>
+    <rect x="508" y="200" width="64" height="12" rx="2" fill="#ffffff"/>
+    <text x="512" y="209" class="mo">fetch /api/*</text>
+
+    <path d="M392,356 V372 Q392,380 384,380 H108 Q100,380 100,388 V440" fill="none" stroke="#1151ff" stroke-width="1.2" marker-end="url(#o-arrow-link)"/>
+    <path d="M464,356 V388 Q464,396 456,396 H284 Q276,396 276,404 V440" fill="none" stroke="#1151ff" stroke-width="1.2" marker-end="url(#o-arrow-link)"/>
+    <path d="M536,356 V404 Q536,412 528,412 H460 Q452,412 452,420 V440" fill="none" stroke="#1151ff" stroke-width="1.2" marker-end="url(#o-arrow-link)"/>
+    <path d="M608,356 V388 Q608,396 616,396 H620 Q628,396 628,404 V440" fill="none" stroke="#707072" stroke-width="1.2" marker-end="url(#o-arrow)"/>
+
+    <!-- 이용자 (input) -->
+    <rect x="200" y="24" width="320" height="56" rx="6" fill="#ffffff"/>
+    <rect x="200" y="24" width="320" height="56" rx="6" fill="rgba(112,112,114,0.10)" stroke="#9e9ea0" stroke-width="1"/>
+    <text x="360" y="48" class="nm" text-anchor="middle">이용자</text>
+    <text x="360" y="68" class="kr" text-anchor="middle">민원인 · 담당 공무원 · 관리자</text>
+
+    <!-- 웹 화면 (backend) -->
+    <rect x="120" y="120" width="480" height="64" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <rect x="128" y="126" width="48" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="152" y="135" class="tg" text-anchor="middle">PUBLIC</text>
+    <text x="360" y="148" class="nm" text-anchor="middle">웹 화면</text>
+    <text x="360" y="170" class="kr" text-anchor="middle">역할 고르기 · 민원 쓰기 · 분류 현황판 · 통계·감독 · 챗봇</text>
+
+    <!-- 브라우저 저장소 (store) -->
+    <rect x="40" y="252" width="200" height="80" rx="6" fill="#ffffff"/>
+    <rect x="40" y="252" width="200" height="80" rx="6" fill="rgba(17,17,17,0.05)" stroke="#707072" stroke-width="1"/>
+    <text x="140" y="276" class="nm" text-anchor="middle">브라우저 저장소</text>
+    <text x="140" y="292" class="mo" text-anchor="middle">localStorage</text>
+    <text x="140" y="316" class="kr" text-anchor="middle">민원 · 판단 이력 · AI 중지</text>
+
+    <!-- 서버 api (focal) -->
+    <rect x="320" y="252" width="360" height="104" rx="6" fill="#ffffff"/>
+    <rect x="320" y="252" width="360" height="104" rx="6" fill="rgba(211,0,5,0.06)" stroke="#d30005" stroke-width="1.2"/>
+    <rect x="328" y="258" width="28" height="12" rx="2" fill="transparent" stroke="rgba(211,0,5,0.40)" stroke-width="0.8"/>
+    <text x="342" y="267" class="tg" text-anchor="middle" style="fill:#d30005">API</text>
+    <text x="500" y="280" class="nm" text-anchor="middle">서버</text>
+    <text x="500" y="298" class="mo" text-anchor="middle">classify · chat · law · stats · status</text>
+    <text x="500" y="320" class="kr" text-anchor="middle">개인정보 가림 → 표현 목록 → AI 판단 · 문서 찾기</text>
+    <text x="500" y="340" class="kr" text-anchor="middle">키는 서버에만 있고 화면에는 보내지 않음</text>
+
+    <!-- 외부 4곳 -->
+    <rect x="24" y="440" width="152" height="72" rx="6" fill="#ffffff"/>
+    <rect x="24" y="440" width="152" height="72" rx="6" fill="rgba(17,17,17,0.03)" stroke="rgba(17,17,17,0.30)" stroke-width="1"/>
+    <text x="100" y="464" class="nm" text-anchor="middle">AI 3사</text>
+    <text x="100" y="480" class="mo" text-anchor="middle">Claude → Groq → Gemini</text>
+    <text x="100" y="500" class="kr" text-anchor="middle">앞이 실패하면 다음</text>
+
+    <rect x="200" y="440" width="152" height="72" rx="6" fill="#ffffff"/>
+    <rect x="200" y="440" width="152" height="72" rx="6" fill="rgba(17,17,17,0.03)" stroke="rgba(17,17,17,0.30)" stroke-width="1"/>
+    <text x="276" y="464" class="nm" text-anchor="middle">국가법령정보</text>
+    <text x="276" y="480" class="mo" text-anchor="middle">law.go.kr · LAW_OC</text>
+    <text x="276" y="500" class="kr" text-anchor="middle">법령·조례 시행일</text>
+
+    <rect x="376" y="440" width="152" height="72" rx="6" fill="#ffffff"/>
+    <rect x="376" y="440" width="152" height="72" rx="6" fill="rgba(17,17,17,0.03)" stroke="rgba(17,17,17,0.30)" stroke-width="1"/>
+    <text x="452" y="464" class="nm" text-anchor="middle">공공데이터포털</text>
+    <text x="452" y="480" class="mo" text-anchor="middle">DATA_GO_KR_KEY</text>
+    <text x="452" y="500" class="kr" text-anchor="middle">권익위 민원빅데이터</text>
+
+    <rect x="552" y="440" width="152" height="72" rx="6" fill="#ffffff"/>
+    <rect x="552" y="440" width="152" height="72" rx="6" fill="rgba(17,17,17,0.05)" stroke="#707072" stroke-width="1"/>
+    <text x="628" y="464" class="nm" text-anchor="middle">답변참고문서</text>
+    <text x="628" y="480" class="mo" text-anchor="middle">docs/ · chunks</text>
+    <text x="628" y="500" class="kr" text-anchor="middle">청킹 조각만 읽음</text>
+
+    <!-- 배포 메모 -->
+    <text x="360" y="548" class="kr" text-anchor="middle">배포: Vercel — public 은 정적 파일, api 는 서버 함수(docs/** 함께 포함)</text>
+    <text x="360" y="568" class="mo" text-anchor="middle">local: node --env-file=.env server.js  →  http://localhost:3000</text>
+
+    <!-- 범례 -->
+    <line x1="24" y1="592" x2="696" y2="592" stroke="#e5e5e5" stroke-width="0.8"/>
+    <rect x="24" y="608" width="16" height="12" rx="2" fill="rgba(211,0,5,0.06)" stroke="#d30005" stroke-width="1"/>
+    <text x="48" y="618" class="lb">핵심(서버)</text>
+    <rect x="148" y="608" width="16" height="12" rx="2" fill="rgba(17,17,17,0.05)" stroke="#707072" stroke-width="1"/>
+    <text x="172" y="618" class="lb">저장소</text>
+    <rect x="248" y="608" width="16" height="12" rx="2" fill="rgba(17,17,17,0.03)" stroke="rgba(17,17,17,0.30)" stroke-width="1"/>
+    <text x="272" y="618" class="lb">외부 서비스</text>
+    <rect x="376" y="608" width="16" height="12" rx="2" fill="rgba(17,17,17,0.02)" stroke="rgba(17,17,17,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="400" y="618" class="lb">키 경계</text>
+    <line x1="484" y1="614" x2="512" y2="614" stroke="#1151ff" stroke-width="1.2" marker-end="url(#o-arrow-link)"/>
+    <text x="520" y="618" class="lb">외부 API 호출</text>
+    <line x1="612" y1="614" x2="640" y2="614" stroke="#707072" stroke-width="1.2" marker-end="url(#o-arrow)"/>
+    <text x="648" y="618" class="lb">내부 흐름</text>
+  </svg>
+  <p class="colophon">기준: 2026.11.19 1차 완성본 · public/ · api/ · server.js · vercel.json</p>
+</section>
+
+<!-- ============ 2쪽: 민원 분류 흐름 ============ -->
+<section class="page">
+  <p class="eyebrow">System design · 2 / 3 · Flowchart</p>
+  <h1>민원 분류 흐름</h1>
+  <p class="sub">민원 글은 어떤 단계든 접수됩니다. AI 는 표시만 하고, 1차 표현 목록과 2차 AI 판단이 다르면 사람이 보는 「검토필요」로 보냅니다.</p>
+
+  <svg class="dg" viewBox="0 0 720 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sys-classify-title sys-classify-desc">
+    <title id="sys-classify-title">민원 분류 흐름</title>
+    <desc id="sys-classify-desc">민원 글이 개인정보 가림, 1차 표현 목록, 2차 AI 판단을 거쳐 단계가 정해지고, 차단후보면 안내 창을 거쳐 어느 경우든 접수되어 담당 공무원이 단계를 확정하는 흐름.</desc>
+    <defs>
+      <style>
+        .nm { font: 600 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #111111; }
+        .kr { font: 400 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #707072; }
+        .lb { font: 500 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #707072; }
+        .mo { font: 400 9px 'Geist Mono',ui-monospace,monospace; fill: #707072; }
+        .tg { font: 500 8px 'Geist Mono',ui-monospace,monospace; fill: #707072; letter-spacing: 0.08em; }
+      </style>
+      <marker id="c-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#707072"/></marker>
+      <marker id="c-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#d30005"/></marker>
+    </defs>
+    <rect width="100%" height="100%" fill="#ffffff"/>
+
+    <!-- 서버 처리 영역 -->
+    <rect x="152" y="96" width="416" height="352" rx="8" fill="#f5f5f5" stroke="#e5e5e5" stroke-width="1"/>
+    <text x="160" y="90" class="tg">SERVER · api/classify.js</text>
+
+    <!-- 연결선 -->
+    <line x1="360" y1="80" x2="360" y2="112" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+    <line x1="360" y1="168" x2="360" y2="200" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+    <line x1="360" y1="256" x2="360" y2="288" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+    <line x1="360" y1="344" x2="360" y2="376" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+    <line x1="360" y1="432" x2="360" y2="456" stroke="#d30005" stroke-width="1.2" marker-end="url(#c-arrow-accent)"/>
+    <!-- AI 표시 중지 우회 -->
+    <path d="M200,228 H128 Q120,228 120,236 V396 Q120,404 128,404 H200" fill="none" stroke="#707072" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#c-arrow)"/>
+    <rect x="36" y="308" width="76" height="16" rx="2" fill="#ffffff"/>
+    <text x="108" y="320" class="lb" text-anchor="end">AI 중지 시</text>
+    <!-- 예: 안내 창 -->
+    <line x1="460" y1="496" x2="508" y2="496" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+    <rect x="476" y="474" width="16" height="16" rx="2" fill="#ffffff"/>
+    <text x="484" y="486" class="lb" text-anchor="middle">예</text>
+    <!-- 아니오: 접수 -->
+    <line x1="360" y1="536" x2="360" y2="576" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+    <rect x="304" y="548" width="48" height="16" rx="2" fill="#ffffff"/>
+    <text x="348" y="560" class="lb" text-anchor="end">아니오</text>
+    <!-- 안내 창 → 접수 -->
+    <path d="M604,524 V596 Q604,604 596,604 H520" fill="none" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+    <rect x="612" y="548" width="64" height="16" rx="2" fill="#ffffff"/>
+    <text x="616" y="560" class="lb">모두 접수</text>
+    <!-- 접수 → 공무원 -->
+    <line x1="360" y1="632" x2="360" y2="664" stroke="#707072" stroke-width="1.2" marker-end="url(#c-arrow)"/>
+
+    <!-- 1 제출 (input) -->
+    <rect x="200" y="24" width="320" height="56" rx="6" fill="#ffffff"/>
+    <rect x="200" y="24" width="320" height="56" rx="6" fill="rgba(112,112,114,0.10)" stroke="#9e9ea0" stroke-width="1"/>
+    <text x="360" y="48" class="nm" text-anchor="middle">민원 글 제출</text>
+    <text x="360" y="66" class="mo" text-anchor="middle">citizen.html → POST /api/classify</text>
+
+    <!-- 2 가림 -->
+    <rect x="200" y="112" width="320" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <rect x="208" y="118" width="52" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="234" y="127" class="tg" text-anchor="middle">mask.js</text>
+    <text x="360" y="136" class="nm" text-anchor="middle">① 개인정보 가림</text>
+    <text x="360" y="156" class="kr" text-anchor="middle">이름 · 전화 · 주소 · 이메일 → ***</text>
+
+    <!-- 3 1차 -->
+    <rect x="200" y="200" width="320" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <rect x="208" y="206" width="72" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="244" y="215" class="tg" text-anchor="middle">wordlist.js</text>
+    <text x="360" y="224" class="nm" text-anchor="middle">② 1차 표현 목록</text>
+    <text x="360" y="244" class="kr" text-anchor="middle">특수문자 빼고 자모 합쳐 목록과 비교</text>
+
+    <!-- 4 AI -->
+    <rect x="200" y="288" width="320" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <rect x="208" y="294" width="40" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="228" y="303" class="tg" text-anchor="middle">ai.js</text>
+    <text x="360" y="312" class="nm" text-anchor="middle">③ 2차 AI 문맥 판단</text>
+    <text x="360" y="332" class="kr" text-anchor="middle">Claude → Groq → Gemini</text>
+
+    <!-- 5 단계 정하기 (focal) -->
+    <rect x="200" y="376" width="320" height="56" rx="6" fill="#ffffff"/>
+    <rect x="200" y="376" width="320" height="56" rx="6" fill="rgba(211,0,5,0.06)" stroke="#d30005" stroke-width="1.2"/>
+    <text x="360" y="400" class="nm" text-anchor="middle">④ 단계 정하기</text>
+    <text x="360" y="420" class="kr" text-anchor="middle">1·2차가 같으면 그 단계 · 다르면 검토필요</text>
+
+    <!-- 6 차단후보인가? (diamond) -->
+    <polygon points="360,456 460,496 360,536 260,496" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="360" y="500" class="nm" text-anchor="middle">차단후보인가?</text>
+
+    <!-- 7 안내 창 -->
+    <rect x="508" y="468" width="192" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="604" y="492" class="nm" text-anchor="middle">제출 전 안내 창</text>
+    <text x="604" y="512" class="kr" text-anchor="middle">제안대로 · 직접 · 그대로</text>
+
+    <!-- 8 접수 저장 (store) -->
+    <rect x="200" y="576" width="320" height="56" rx="6" fill="#ffffff"/>
+    <rect x="200" y="576" width="320" height="56" rx="6" fill="rgba(17,17,17,0.05)" stroke="#707072" stroke-width="1"/>
+    <rect x="208" y="582" width="80" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="248" y="591" class="tg" text-anchor="middle">localStorage</text>
+    <text x="360" y="600" class="nm" text-anchor="middle">접수 저장</text>
+    <text x="360" y="620" class="kr" text-anchor="middle">가린 글만 저장 · 처리 기한 그대로</text>
+
+    <!-- 9 공무원 -->
+    <rect x="200" y="664" width="320" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <rect x="208" y="670" width="72" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="244" y="679" class="tg" text-anchor="middle">staff.html</text>
+    <text x="360" y="688" class="nm" text-anchor="middle">담당 공무원 확정 · 변경</text>
+    <text x="360" y="708" class="kr" text-anchor="middle">순화본 먼저 · 원문은 눌러야 · 판단 이력 기록</text>
+
+    <!-- 설명(AI 실패) -->
+    <text x="580" y="312" class="kr">실패하면 다음 AI</text>
+    <text x="580" y="332" class="kr">모두 실패 → 검토필요</text>
+
+    <!-- 범례 -->
+    <line x1="24" y1="752" x2="696" y2="752" stroke="#e5e5e5" stroke-width="0.8"/>
+    <rect x="24" y="768" width="16" height="12" rx="2" fill="rgba(211,0,5,0.06)" stroke="#d30005" stroke-width="1"/>
+    <text x="48" y="778" class="lb">핵심 판단</text>
+    <rect x="140" y="768" width="16" height="12" rx="2" fill="rgba(112,112,114,0.10)" stroke="#9e9ea0" stroke-width="1"/>
+    <text x="164" y="778" class="lb">입력</text>
+    <rect x="224" y="768" width="16" height="12" rx="2" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="248" y="778" class="lb">처리</text>
+    <rect x="308" y="768" width="16" height="12" rx="2" fill="rgba(17,17,17,0.05)" stroke="#707072" stroke-width="1"/>
+    <text x="332" y="778" class="lb">저장</text>
+    <polygon points="400,766 408,774 400,782 392,774" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="416" y="778" class="lb">갈림길</text>
+    <rect x="484" y="768" width="16" height="12" rx="2" fill="#f5f5f5" stroke="#e5e5e5" stroke-width="1"/>
+    <text x="508" y="778" class="lb">서버 안</text>
+    <line x1="580" y1="774" x2="608" y2="774" stroke="#707072" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#c-arrow)"/>
+    <text x="616" y="778" class="lb">우회</text>
+  </svg>
+  <p class="colophon">AI 표시 중지(관리자) 때는 ③ 을 건너뛰고 1차 결과만 씁니다 — 이때 차단후보는 검토필요로 낮춥니다.</p>
+</section>
+
+<!-- ============ 3쪽: 챗봇 답변 흐름 ============ -->
+<section class="page">
+  <p class="eyebrow">System design · 3 / 3 · Flowchart</p>
+  <h1>챗봇 답변 흐름</h1>
+  <p class="sub">챗봇은 답변참고문서(청킹)에 있는 내용으로만 답하고, 답마다 근거 문서 이름을 붙입니다. 문서에 없으면 모른다고 하고 문의처를 안내합니다.</p>
+
+  <svg class="dg" viewBox="0 0 720 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sys-chat-title sys-chat-desc">
+    <title id="sys-chat-title">챗봇 답변 흐름</title>
+    <desc id="sys-chat-desc">질문이 들어오면 답변참고문서에서 근거를 찾고, 없으면 문의처를 안내하며, 있으면 AI 가 문서 안에서만 답한 뒤 근거 문서와 법령 시행일을 확인해 화면에 표시하는 흐름.</desc>
+    <defs>
+      <style>
+        .nm { font: 600 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #111111; }
+        .kr { font: 400 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #707072; }
+        .lb { font: 500 12px 'Geist','Noto Sans KR','Malgun Gothic',sans-serif; fill: #707072; }
+        .mo { font: 400 9px 'Geist Mono',ui-monospace,monospace; fill: #707072; }
+        .tg { font: 500 8px 'Geist Mono',ui-monospace,monospace; fill: #707072; letter-spacing: 0.08em; }
+      </style>
+      <marker id="h-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#707072"/></marker>
+      <marker id="h-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#d30005"/></marker>
+      <marker id="h-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1151ff"/></marker>
+    </defs>
+    <rect width="100%" height="100%" fill="#ffffff"/>
+
+    <!-- 연결선 -->
+    <line x1="360" y1="80" x2="360" y2="112" stroke="#707072" stroke-width="1.2" marker-end="url(#h-arrow)"/>
+    <line x1="360" y1="168" x2="360" y2="192" stroke="#707072" stroke-width="1.2" marker-end="url(#h-arrow)"/>
+    <!-- 없음 -->
+    <line x1="460" y1="232" x2="544" y2="232" stroke="#707072" stroke-width="1.2" marker-end="url(#h-arrow)"/>
+    <rect x="484" y="210" width="36" height="16" rx="2" fill="#ffffff"/>
+    <text x="502" y="222" class="lb" text-anchor="middle">없음</text>
+    <!-- 있음 -->
+    <line x1="360" y1="272" x2="360" y2="312" stroke="#d30005" stroke-width="1.2" marker-end="url(#h-arrow-accent)"/>
+    <rect x="316" y="284" width="36" height="16" rx="2" fill="#ffffff"/>
+    <text x="348" y="296" class="lb" text-anchor="end">있음</text>
+    <!-- AI 모두 실패 -->
+    <line x1="520" y1="344" x2="544" y2="344" stroke="#707072" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#h-arrow)"/>
+    <line x1="360" y1="376" x2="360" y2="408" stroke="#707072" stroke-width="1.2" marker-end="url(#h-arrow)"/>
+    <line x1="360" y1="464" x2="360" y2="496" stroke="#707072" stroke-width="1.2" marker-end="url(#h-arrow)"/>
+    <line x1="360" y1="552" x2="360" y2="584" stroke="#707072" stroke-width="1.2" marker-end="url(#h-arrow)"/>
+    <!-- 법령이 아니면 건너뜀 -->
+    <path d="M200,436 H144 Q136,436 136,444 V604 Q136,612 144,612 H200" fill="none" stroke="#707072" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#h-arrow)"/>
+    <rect x="48" y="580" width="80" height="16" rx="2" fill="#ffffff"/>
+    <text x="128" y="592" class="lb" text-anchor="end">법령이 아니면</text>
+    <!-- 문서 원문(시연 값) → 화면 -->
+    <path d="M612,372 V592 Q612,600 604,600 H520" fill="none" stroke="#707072" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#h-arrow)"/>
+    <!-- 모른다 → 화면 -->
+    <path d="M692,260 V616 Q692,624 684,624 H520" fill="none" stroke="#707072" stroke-width="1.2" marker-end="url(#h-arrow)"/>
+
+    <!-- 질문 (input) -->
+    <rect x="200" y="24" width="320" height="56" rx="6" fill="#ffffff"/>
+    <rect x="200" y="24" width="320" height="56" rx="6" fill="rgba(112,112,114,0.10)" stroke="#9e9ea0" stroke-width="1"/>
+    <text x="360" y="48" class="nm" text-anchor="middle">질문</text>
+    <text x="360" y="66" class="mo" text-anchor="middle">chat.js widget → POST /api/chat</text>
+
+    <!-- 문서 찾기 (store 읽기) -->
+    <rect x="200" y="112" width="320" height="56" rx="6" fill="#ffffff"/>
+    <rect x="200" y="112" width="320" height="56" rx="6" fill="rgba(17,17,17,0.05)" stroke="#707072" stroke-width="1"/>
+    <rect x="208" y="118" width="48" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="232" y="127" class="tg" text-anchor="middle">rag.js</text>
+    <text x="360" y="136" class="nm" text-anchor="middle">답변참고문서에서 찾기</text>
+    <text x="360" y="156" class="kr" text-anchor="middle">청킹 폴더만 · 글자 두 개 묶음 점수</text>
+
+    <!-- 근거 있나? -->
+    <polygon points="360,192 460,232 360,272 260,232" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="360" y="236" class="nm" text-anchor="middle">근거 문서가 있나?</text>
+
+    <!-- 모른다 + 문의처 -->
+    <rect x="544" y="204" width="160" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="624" y="228" class="nm" text-anchor="middle">모른다 + 문의처</text>
+    <text x="624" y="248" class="kr" text-anchor="middle">감사담당관 안내</text>
+
+    <!-- AI 답변 (focal) -->
+    <rect x="200" y="312" width="320" height="64" rx="6" fill="#ffffff"/>
+    <rect x="200" y="312" width="320" height="64" rx="6" fill="rgba(211,0,5,0.06)" stroke="#d30005" stroke-width="1.2"/>
+    <rect x="208" y="318" width="40" height="12" rx="2" fill="transparent" stroke="rgba(211,0,5,0.40)" stroke-width="0.8"/>
+    <text x="228" y="327" class="tg" text-anchor="middle" style="fill:#d30005">ai.js</text>
+    <text x="360" y="340" class="nm" text-anchor="middle">AI 답변 — 문서 안에서만</text>
+    <text x="360" y="362" class="kr" text-anchor="middle">Claude → Groq → Gemini · 처분 단정 안 함</text>
+
+    <!-- AI 모두 실패 (optional) -->
+    <rect x="544" y="316" width="136" height="56" rx="6" fill="#ffffff"/>
+    <rect x="544" y="316" width="136" height="56" rx="6" fill="rgba(17,17,17,0.02)" stroke="rgba(17,17,17,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="612" y="340" class="nm" text-anchor="middle">AI 모두 실패 시</text>
+    <text x="612" y="360" class="kr" text-anchor="middle">문서 원문 · 시연 값</text>
+
+    <!-- 근거 문서 확인 -->
+    <rect x="200" y="408" width="320" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="360" y="432" class="nm" text-anchor="middle">근거 문서 이름 확인</text>
+    <text x="360" y="452" class="kr" text-anchor="middle">찾은 문서 목록에 있는 이름만 표시</text>
+
+    <!-- 법령 시행일 -->
+    <rect x="200" y="496" width="320" height="56" rx="6" fill="#ffffff"/>
+    <rect x="200" y="496" width="320" height="56" rx="6" fill="rgba(17,17,17,0.03)" stroke="rgba(17,17,17,0.30)" stroke-width="1"/>
+    <rect x="208" y="502" width="48" height="12" rx="2" fill="transparent" stroke="rgba(17,17,17,0.40)" stroke-width="0.8"/>
+    <text x="232" y="511" class="tg" text-anchor="middle">law.js</text>
+    <text x="360" y="520" class="nm" text-anchor="middle">법령·조례 시행일 확인</text>
+    <text x="360" y="540" class="kr" text-anchor="middle">국가법령정보(LAW_OC) 현행본과 대조</text>
+
+    <!-- 화면 표시 -->
+    <rect x="200" y="584" width="320" height="56" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="360" y="608" class="nm" text-anchor="middle">화면에 표시</text>
+    <text x="360" y="628" class="kr" text-anchor="middle">AI가 만든 문장 · 근거 · 답한 AI · 실시간/시연 값</text>
+
+    <!-- 설명(법령 실패) -->
+    <text x="128" y="512" class="kr" text-anchor="end">실패하면 문서의</text>
+    <text x="128" y="530" class="kr" text-anchor="end">현행본 = 시연 값</text>
+
+    <!-- 범례 -->
+    <line x1="24" y1="672" x2="696" y2="672" stroke="#e5e5e5" stroke-width="0.8"/>
+    <rect x="24" y="688" width="16" height="12" rx="2" fill="rgba(211,0,5,0.06)" stroke="#d30005" stroke-width="1"/>
+    <text x="48" y="698" class="lb">핵심 규칙</text>
+    <rect x="140" y="688" width="16" height="12" rx="2" fill="rgba(17,17,17,0.05)" stroke="#707072" stroke-width="1"/>
+    <text x="164" y="698" class="lb">문서 읽기</text>
+    <rect x="256" y="688" width="16" height="12" rx="2" fill="rgba(17,17,17,0.03)" stroke="rgba(17,17,17,0.30)" stroke-width="1"/>
+    <text x="280" y="698" class="lb">외부 API</text>
+    <rect x="368" y="688" width="16" height="12" rx="2" fill="rgba(17,17,17,0.02)" stroke="rgba(17,17,17,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="392" y="698" class="lb">실패 대비(시연 값)</text>
+    <polygon points="536,686 544,694 536,702 528,694" fill="#ffffff" stroke="#111111" stroke-width="1"/>
+    <text x="552" y="698" class="lb">갈림길</text>
+    <line x1="608" y1="694" x2="636" y2="694" stroke="#707072" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#h-arrow)"/>
+    <text x="644" y="698" class="lb">우회</text>
+  </svg>
+  <p class="colophon">근거 문서 이름이 찾은 목록에 없으면 버리고, 법령·조례 문서일 때만 국가법령정보를 부릅니다.</p>
+</section>
+
+</body>
+</html>

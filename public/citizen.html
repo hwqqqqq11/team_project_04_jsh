@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>민원 쓰기 · 성북 안심 민원 필터</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main>
+    <section class="hero small" aria-labelledby="t">
+      <div class="hero-inner">
+        <p class="hero-eyebrow">민원인 화면</p>
+        <h1 class="hero-title" id="t">구청장에게 바란다</h1>
+        <p class="hero-sub">불편한 점과 바라는 점을 적어 주세요. 처리 기간은 주말·공휴일을 빼고 7일입니다.</p>
+      </div>
+    </section>
+
+    <div class="wrap">
+      <div class="section two-col">
+        <section aria-labelledby="form-title">
+          <h2 class="h-xl" id="form-title">민원 쓰기</h2>
+          <div class="notice" role="note" style="margin-bottom:24px">
+            <span aria-hidden="true">ⓘ</span>
+            <div><strong>AI 사용 안내</strong> — 제출할 때 AI가 글을 읽고 욕설·모욕·협박·성희롱 표현이 있는지 표시합니다. 이름·전화번호·주소는 AI에 보내기 전에 ***로 가립니다. AI는 접수 여부를 정하지 않으며, 어떤 표현이든 민원은 접수됩니다.</div>
+          </div>
+          <form id="form" novalidate>
+            <label class="field">
+              <span class="field-label">제목</span>
+              <input class="input" id="title" maxlength="60" placeholder="예: 골목 가로등 고장" required>
+            </label>
+            <label class="field">
+              <span class="field-label">내용</span>
+              <textarea class="textarea" id="text" maxlength="4000" placeholder="무엇이, 어디서, 언제부터 불편한지 적어 주세요." required></textarea>
+              <span class="field-help" id="text-help">시제품은 실명·연락처를 받지 않습니다. 실제 개인정보는 넣지 마세요.</span>
+            </label>
+            <div class="field">
+              <span class="field-label">[가상 예시] 글로 채워 보기</span>
+              <div class="chips" id="samples"></div>
+            </div>
+            <p id="form-error" class="caption" role="alert" style="color:var(--block)"></p>
+            <button class="btn" type="submit" id="submit">제출하기</button>
+          </form>
+          <div id="done" class="done" hidden tabindex="-1"></div>
+        </section>
+
+        <section aria-labelledby="mine-title">
+          <h2 class="h-xl" id="mine-title">내 민원</h2>
+          <p class="caption">이 브라우저에서 제출한 민원만 보입니다.</p>
+          <div id="mine" class="list"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal-bg" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <p class="caption-sm">제출 전 안내 · AI가 표시한 내용</p>
+      <h2 id="modal-title">담당자가 읽기 힘든 표현이 있어요</h2>
+      <p class="caption">고쳐서 내면 담당자가 요구를 더 빨리 파악할 수 있습니다. 고치지 않아도 그대로 접수되고, 처리 기한도 같습니다.</p>
+      <div id="fixes"></div>
+      <div class="choice-list">
+        <button class="btn" type="button" data-choice="제안대로">제안대로 고치기 <small>AI가 만든 문장으로 바꿔 제출</small></button>
+        <button class="btn secondary" type="button" data-choice="직접">직접 고치기 <small>글로 돌아가 고친 뒤 다시 제출</small></button>
+        <button class="btn outline" type="button" data-choice="그대로">그대로 제출 <small>일부 표현은 가려진 채 전달</small></button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/citizen.js"></script>
+</body>
+</html>

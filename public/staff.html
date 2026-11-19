@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>분류 현황판 · 성북 안심 민원 필터</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main>
+    <section class="hero small" aria-labelledby="t">
+      <div class="hero-inner">
+        <p class="hero-eyebrow">담당 공무원 화면</p>
+        <h1 class="hero-title" id="t">분류 현황판</h1>
+        <p class="hero-sub">순화본과 요약을 먼저 보여 줍니다. 원문은 [원문 보기]를 눌러야 열립니다. AI 표시는 참고자료이고, 단계는 담당자가 정합니다.</p>
+      </div>
+    </section>
+    <div class="wrap">
+      <div class="section">
+        <div id="mode-note"></div>
+        <div class="chips" role="tablist" aria-label="단계별 보기" id="tabs"></div>
+      </div>
+      <div class="section board">
+        <section aria-label="민원 목록"><div class="list" id="list"></div></section>
+        <section aria-label="선택한 민원" class="detail" id="detail" tabindex="-1"></section>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="/js/staff.js"></script>
+</body>
+</html>

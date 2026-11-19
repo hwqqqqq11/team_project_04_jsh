@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>통계·감독 · 성북 안심 민원 필터</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main>
+    <section class="hero small" aria-labelledby="t">
+      <div class="hero-inner">
+        <p class="hero-eyebrow">부서 관리자 · 감사 담당 화면</p>
+        <h1 class="hero-title" id="t">통계·감독</h1>
+        <p class="hero-sub">AI 표시가 사람의 판단과 얼마나 어긋나는지 봅니다. 목표 수치는 정하지 않았고, 시제품에서 잰 값을 그대로 보여 줍니다.</p>
+      </div>
+    </section>
+    <div class="wrap">
+      <section class="section" aria-labelledby="pause-t">
+        <h2 class="sr-only" id="pause-t">AI 표시 중지</h2>
+        <div class="switch">
+          <div><p class="h-md">AI 표시 중지 (수동 모드)</p><p class="caption" style="margin:0" id="pause-desc"></p></div>
+          <button class="switch-btn" type="button" role="switch" id="pause" aria-labelledby="pause-t"></button>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="kpi-t">
+        <h2 class="h-xl" id="kpi-t">지표</h2>
+        <div class="kpis" id="kpis"></div>
+      </section>
+
+      <section class="section grid-2">
+        <div>
+          <h2 class="h-xl">최근 7일 단계별 건수</h2>
+          <div class="legend"><span class="stage s-정상">정상</span><span class="stage s-검토필요">검토필요</span><span class="stage s-차단후보">차단후보</span></div>
+          <div class="bars" id="bars" aria-label="최근 7일 단계별 건수 막대"></div>
+          <div class="bar-labels" id="bar-labels"></div>
+        </div>
+        <div>
+          <h2 class="h-xl">오분류 사례</h2>
+          <p class="caption">담당자가 AI 표시와 다른 단계로 바꾼 민원입니다.</p>
+          <div class="list" id="mis"></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="hist-t">
+        <h2 class="h-xl" id="hist-t">판단 이력</h2>
+        <div class="chips" id="hist-filter" style="margin-bottom:18px"></div>
+        <div class="table-wrap"><table><thead><tr><th>시각</th><th>민원</th><th>기록</th><th>단계</th><th>사유</th><th>누가</th><th>모델</th></tr></thead><tbody id="hist"></tbody></table></div>
+      </section>
+
+      <section class="section grid-2">
+        <div>
+          <h2 class="h-xl">참고 통계</h2>
+          <div id="stats"><p class="caption">불러오는 중…</p></div>
+        </div>
+        <div>
+          <h2 class="h-xl">키·API 상태</h2>
+          <ul class="status-list" id="status"><li>확인 중…</li></ul>
+          <p class="fine">키 값은 화면에 보이지 않습니다. 「값 있음 / 비어 있음」만 표시합니다.</p>
+          <button class="btn secondary sm" type="button" id="reset" style="margin-top:12px">시연 데이터로 되돌리기</button>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
