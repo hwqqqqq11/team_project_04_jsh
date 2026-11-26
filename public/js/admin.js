@@ -50,8 +50,13 @@ function renderBars() {
     return Object.fromEntries(STAGES.map((s) => [s, inDay.filter((c) => currentStage(c) === s).length]));
   });
   const max = Math.max(1, ...counts.map((c) => STAGES.reduce((a, s) => a + c[s], 0)));
-  $('#bars').innerHTML = counts.map((c, i) => `<div class="bar" title="${days[i].getMonth() + 1}/${days[i].getDate()} · ${STAGES.map((s) => `${s} ${c[s]}`).join(', ')}">${STAGES.map((s) => `<span class="b-${s}" style="height:${(c[s] / max) * 100}%"></span>`).join('')}</div>`).join('');
-  $('#bar-labels').innerHTML = days.map((d) => `<span>${d.getMonth() + 1}/${d.getDate()}</span>`).join('');
+  const total = (c) => STAGES.reduce((a, s) => a + c[s], 0);
+  const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+  // 칸 안에는 단계별 건수(칸이 너무 낮으면 생략), 아래 날짜 옆에는 하루 합계를 적는다
+  $('#bars').innerHTML = counts.map((c, i) => `<div class="bar" title="${md(days[i])} · ${STAGES.map((s) => `${s} ${c[s]}`).join(', ')}">${STAGES.map((s) => `<span class="b-${s}" style="height:${(c[s] / max) * 100}%">${c[s] && c[s] / max >= 0.14 ? c[s] : ''}</span>`).join('')}</div>`).join('');
+  $('#bars').setAttribute('role', 'img');
+  $('#bars').setAttribute('aria-label', `최근 7일 단계별 건수: ${days.map((d, i) => `${md(d)} ${total(counts[i])}건`).join(', ')}`);
+  $('#bar-labels').innerHTML = days.map((d, i) => `<span>${md(d)}<b>${total(counts[i])}건</b></span>`).join('');
 }
 
 function renderMis() {

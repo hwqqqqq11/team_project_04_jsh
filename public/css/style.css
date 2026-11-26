@@ -239,11 +239,12 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .kpi-formula { font-size: 12px; color: var(--mute); margin-top: 4px; }
 .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-sm); align-items: end; height: 180px; border-bottom: 1px solid var(--hairline); }
 .bar { display: flex; flex-direction: column-reverse; height: 100%; }
-.bar span { display: block; }
+.bar span { display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff; overflow: hidden; }
 .bar .b-정상 { background: var(--ink); }
 .bar .b-검토필요 { background: var(--review); }
 .bar .b-차단후보 { background: var(--block); }
 .bar-labels { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-sm); font-size: 12px; color: var(--mute); margin-top: 6px; text-align: center; }
+.bar-labels b { display: block; font-weight: 600; color: var(--ink); }
 .legend { display: flex; gap: var(--sp-lg); flex-wrap: wrap; margin-bottom: var(--sp-md); }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
