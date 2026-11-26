@@ -8,7 +8,7 @@ const LINKS = [
 export function mountLayout(current) {
   const header = document.createElement('header');
   header.innerHTML = `
-    <div class="utility" aria-label="안내"><span>시제품 · 가상 예시 민원만 사용</span><span id="auth-state">담당자·관리자 화면은 로그인이 필요할 수 있습니다</span></div>
+    <div class="utility" aria-label="안내"><span>시제품 · 가상 예시 민원만 사용</span><span id="auth-state">담당자·관리자는 로그인</span></div>
     <nav class="nav" aria-label="주 메뉴">
       <a class="brand" href="/">성북 안심 <b>민원 필터</b></a>
       <div class="nav-links">
