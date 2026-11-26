@@ -3,6 +3,7 @@
 import { readBody, send } from './_lib/http.js';
 import { search, contactText } from './_lib/rag.js';
 import { callAI } from './_lib/ai.js';
+import { guard } from './_lib/limit.js';
 import { lawStatus, LAW_DOCS } from './law.js';
 
 const MIN_SCORE = 2.2;
@@ -19,6 +20,7 @@ const SYSTEM = `너는 「성북 안심 민원 필터」 서비스 안내 챗봇
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'POST 만 받습니다' });
+  if (!(await guard(req, res, 'chat', 15, 60))) return;
   const { question = '', role = '민원인' } = await readBody(req);
   const q = String(question).slice(0, 500).trim();
   if (!q) return send(res, 400, { error: '질문이 비어 있습니다' });

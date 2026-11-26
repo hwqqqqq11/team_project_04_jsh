@@ -1,6 +1,7 @@
 // 국가법령정보 공동활용(open.law.go.kr) — LAW_OC 로 현행 법령·자치법규의 시행일을 확인한다.
 // 실패하면 이유(키 비어 있음 · 승인 안 됨 · 시간 초과)와 「시연 값」(답변참고문서에 적힌 현행본)을 함께 준다.
 import { readBody, send, fetchJson, keyEmpty, reasonOf } from './_lib/http.js';
+import { guard } from './_lib/limit.js';
 import { docInfo } from './_lib/rag.js';
 
 // 답변참고문서 이름 → 국가법령정보 검색 대상
@@ -70,6 +71,7 @@ export async function lawStatus(doc) {
 }
 
 export default async function handler(req, res) {
+  if (!(await guard(req, res, 'law', 30, 60))) return;
   const body = req.method === 'POST' ? await readBody(req) : {};
   const url = new URL(req.url, 'http://x');
   const docs = body.docs || (url.searchParams.get('doc') ? [url.searchParams.get('doc')] : Object.keys(LAW_DOCS));

@@ -1,9 +1,12 @@
-import { mountLayout } from './layout.js';
+import { mountLayout, toast } from './layout.js';
+import { requireRole } from './gate.js';
 import { mountChat } from './chat.js';
-import { load, setAiPaused, reset, currentStage, esc, fmtTime, stageTag, srcBadge } from './store.js';
+import { init, startSync, storageMode, load, setAiPaused, reset, currentStage, esc, fmtTime, stageTag, srcBadge } from './store.js';
 
 mountLayout('admin');
 mountChat('관리자');
+await requireRole('admin');
+await init('all');
 
 const $ = (s) => document.querySelector(s);
 const STAGES = ['정상', '검토필요', '차단후보'];
@@ -99,13 +102,15 @@ async function renderStatus() {
 
 function refresh() { renderPause(); renderKpis(); renderBars(); renderMis(); renderHist(); }
 
-$('#pause').addEventListener('click', () => { setAiPaused(!load().settings.aiPaused); refresh(); });
-$('#hist-filter').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; histFilter = b.dataset.k; renderHist(); });
-$('#reset').addEventListener('click', () => {
-  if (!confirm('이 브라우저에 저장된 민원·이력을 모두 지우고 [가상 예시] 10건으로 되돌릴까요?')) return;
-  reset(); refresh();
+$('#pause').addEventListener('click', async () => {
+  try { await setAiPaused(!load().settings.aiPaused); refresh(); } catch (e) { toast(`바꾸지 못했습니다(${e.message})`); }
 });
-window.addEventListener('storage', refresh);
+$('#hist-filter').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; histFilter = b.dataset.k; renderHist(); });
+$('#reset').addEventListener('click', async () => {
+  if (!confirm(`${storageMode() === 'server' ? '서버에 저장된' : '이 브라우저에 저장된'} 민원·이력을 모두 지우고 [가상 예시] 10건으로 되돌릴까요?`)) return;
+  try { await reset(); refresh(); } catch (e) { toast(`되돌리지 못했습니다(${e.message})`); }
+});
+startSync(refresh);
 refresh();
 renderStats();
 renderStatus();

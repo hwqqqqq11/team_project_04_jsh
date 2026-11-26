@@ -2,6 +2,7 @@
 // 이 서비스의 판정 근거가 아닌 참고 자료다. 실패하면 이유(키 비어 있음 · 승인 안 됨 · 시간 초과)와 시연 값을 준다.
 // ※ 성북구 단위 「지역 인구수 대비 민원 현황」은 기능 주소를 아직 확인하지 못했다(OpenAPI 기술문서 확인 필요).
 import { send, reasonOf } from './_lib/http.js';
+import { guard } from './_lib/limit.js';
 import { callPortal } from './_lib/publicapi.js';
 
 const BASE = 'https://apis.data.go.kr/1140100/minAnalsInfoView5';
@@ -22,6 +23,7 @@ function pickTopics(body) {
 }
 
 export default async function handler(req, res) {
+  if (!(await guard(req, res, 'stats', 30, 60))) return;
   if (cache && Date.now() - cache.at < 3600 * 1000) return send(res, 200, cache.value);
   const day = ymd(new Date(Date.now() - 86400000));
   let value;

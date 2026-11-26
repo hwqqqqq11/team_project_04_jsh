@@ -5,6 +5,10 @@ import { maskPII } from './_lib/mask.js';
 import { checkWords, hideWords } from './_lib/wordlist.js';
 import { callAI } from './_lib/ai.js';
 import { criteriaText } from './_lib/rag.js';
+import { guard } from './_lib/limit.js';
+import { kvEnabled } from './_lib/kv.js';
+import { getSettings } from './_lib/dbstore.js';
+import { signResult } from './_lib/auth.js';
 
 const STAGES = ['정상', '검토필요', '차단후보'];
 
@@ -39,9 +43,16 @@ function firstSummary(text) {
   return t.length > 80 ? `${t.slice(0, 80)}…` : t;
 }
 
+const reply = (res, r) => send(res, 200, { ...r, sig: signResult(r) });
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'POST 만 받습니다' });
-  const { text = '', aiPaused = false } = await readBody(req);
+  if (!(await guard(req, res, 'classify', 10, 60))) return;
+  const body = await readBody(req);
+  const { text = '' } = body;
+  // 저장소가 있으면 관리자가 정한 값을 서버가 직접 읽는다(화면이 보낸 값은 믿지 않는다)
+  let aiPaused = !!body.aiPaused;
+  if (kvEnabled()) { try { aiPaused = !!(await getSettings()).aiPaused; } catch { /* 저장소 오류 — 화면 값 사용 */ } }
   const original = String(text).slice(0, 4000);
   if (!original.trim()) return send(res, 400, { error: '민원 내용이 비어 있습니다' });
 
@@ -60,7 +71,7 @@ export default async function handler(req, res) {
 
   // 관리자가 AI 표시를 멈춘 수동 모드: 1차 결과만 표시
   if (aiPaused) {
-    return send(res, 200, {
+    return reply(res, {
       ...base,
       stage: first.stage === '정상' ? '정상' : '검토필요',
       mode: 'manual',
@@ -75,7 +86,7 @@ export default async function handler(req, res) {
   const ai = await callAI({ system: SYSTEM, user: `[민원 글]\n${pii.text}`, maxTokens: 2500 });
 
   if (!ai.ok || !STAGES.includes(ai.data?.stage)) {
-    return send(res, 200, {
+    return reply(res, {
       ...base,
       stage: '검토필요',
       mode: 'ai-failed',
@@ -90,7 +101,7 @@ export default async function handler(req, res) {
   const d = ai.data;
   const agree = d.stage === first.stage;
   const stage = agree ? d.stage : '검토필요';
-  return send(res, 200, {
+  return reply(res, {
     ...base,
     stage,
     mode: 'ai',

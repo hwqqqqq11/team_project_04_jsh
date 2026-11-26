@@ -4,7 +4,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { fetchJson, keyEmpty } from './http.js';
 
 const PREFER = {
-  claude: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-opus-5', 'claude-sonnet-5', 'claude-haiku-5-5'],
+  // 분류는 건마다 불리므로 비용 대비 빠른 sonnet 을 먼저 쓴다. 바꾸려면 환경변수 CLAUDE_MODEL 에 모델 이름을 넣는다
+  claude: ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-opus-5-5', 'claude-opus-5', 'claude-haiku-5-5'],
   groq: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'moonshotai/kimi-k2-instruct', 'qwen/qwen3-32b', 'llama-3.1-8b-instant'],
   // 목록에 있어도 「새 사용자에게는 더 이상 제공 안 함」(404) 인 옛 모델이 있어, 항상 최신을 가리키는 별칭을 먼저 쓴다
   gemini: ['gemini-flash-latest', 'gemini-pro-latest'],
@@ -67,7 +68,8 @@ export async function pickModel(provider) {
   }
   const usable = list.filter((id) => !isBad(provider, id));
   const ordered = provider === 'gemini' ? byNewest(usable.filter((id) => !/preview|exp/.test(id))) : usable;
-  const model = PREFER[provider].find((p) => usable.includes(p)) || ordered[0] || usable[0];
+  const forced = provider === 'claude' ? (process.env.CLAUDE_MODEL || '').trim() : '';
+  const model = (forced && usable.includes(forced) ? forced : null) || PREFER[provider].find((p) => usable.includes(p)) || ordered[0] || usable[0];
   if (!model) {
     const e = new Error('쓸 수 있는 모델이 없음(모두 404)');
     e.status = 404;

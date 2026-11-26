@@ -325,3 +325,8 @@ th { font-weight: 600; white-space: nowrap; }
   .chat-fab { right: 16px; bottom: 16px; }
   .footer { padding: var(--sp-xl) 16px 96px; }
 }
+
+/* 알림 · 로그아웃 버튼 */
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 24px); background: var(--ink); color: var(--canvas); padding: 14px 24px; border-radius: 999px; max-width: calc(100vw - 32px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 200; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+.link-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
