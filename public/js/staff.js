@@ -1,9 +1,12 @@
-import { mountLayout } from './layout.js';
+import { mountLayout, toast } from './layout.js';
+import { requireRole } from './gate.js';
 import { mountChat } from './chat.js';
-import { load, decide, currentStage, esc, fmtTime, stageTag } from './store.js';
+import { init, startSync, storageMode, load, decide, currentStage, esc, fmtTime, stageTag } from './store.js';
 
 mountLayout('staff');
 mountChat('담당 공무원');
+await requireRole('staff');
+await init('all');
 
 const STAGES = ['정상', '검토필요', '차단후보'];
 // 변경 사유는 선택형으로 한 번에 고른다 — 긴 사유를 쓰게 하면 AI 를 따르려는 유인이 커진다(기획서 4.3)
@@ -75,7 +78,7 @@ function renderDetail() {
     <div class="section" style="margin-top:32px">
       <p class="h-md">판단 이력</p>
       <ul class="timeline">${hist.map((h) => `<li><span class="caption-sm">${fmtTime(h.at)}</span><span><strong>${esc(h.action)}</strong> ${h.from ? `${esc(h.from)} → ` : ''}${esc(h.to || '')} · ${esc(h.actor)}${h.reason ? ` · ${esc(h.reason)}` : ''}${h.model && h.model !== '—' ? ` <span class="muted">(${esc(h.model)})</span>` : ''}</span></li>`).join('')}</ul>
-      <p class="fine">시제품은 이 브라우저에 저장합니다. 실제 도입 때는 고칠 수 없는 서버 기록으로 바꿔야 합니다.</p>
+      <p class="fine">${storageMode() === 'server' ? '판단 이력은 서버가 남기며 화면에서 고칠 수 없습니다.' : '서버 저장소가 연결되지 않아 이 브라우저에 저장합니다. 실제 도입 때는 고칠 수 없는 서버 기록이 필요합니다.'}</p>
     </div>`;
 
   box.querySelector('#raw-btn').addEventListener('click', () => { showRaw = !showRaw; renderDetail(); });
@@ -85,7 +88,7 @@ function renderDetail() {
     p.textContent = c.maskedText;
     e.target.remove();
   });
-  box.querySelector('#confirm')?.addEventListener('click', () => { decide(c.id, currentStage(c), '', false); refresh(); });
+  box.querySelector('#confirm')?.addEventListener('click', () => save(c.id, currentStage(c), '', false));
   box.querySelector('#change')?.addEventListener('click', () => { changing = true; renderDetail(); });
   box.querySelector('#cancel-change')?.addEventListener('click', () => { changing = false; renderDetail(); });
   box.querySelector('#to-stage')?.addEventListener('click', (e) => {
@@ -96,15 +99,17 @@ function renderDetail() {
     const b = e.target.closest('[data-r]'); if (!b) return;
     box.querySelectorAll('#reasons .chip').forEach((x) => { const on = x === b && !x.classList.contains('on'); x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
   });
-  box.querySelector('#save-change')?.addEventListener('click', () => {
+  box.querySelector('#save-change')?.addEventListener('click', async () => {
     const to = box.querySelector('#to-stage .chip.on')?.dataset.to;
     const r = box.querySelector('#reasons .chip.on')?.dataset.r || '';
     if (!to) return;
-    decide(c.id, to, r, true);
-    changing = false;
-    tab = to;
-    refresh();
+    if (await save(c.id, to, r, true)) { changing = false; tab = to; refresh(); }
   });
+}
+
+async function save(id, to, reason, changed) {
+  try { await decide(id, to, reason, changed); refresh(); return true; }
+  catch (e) { toast(e.status === 401 ? '로그인이 풀렸습니다. 새로고침해 다시 로그인하세요.' : `저장하지 못했습니다(${e.message})`); return false; }
 }
 
 function refresh() { renderTabs(); renderList(); renderDetail(); }
@@ -123,4 +128,4 @@ $('#list').addEventListener('click', (e) => {
 const first = load().complaints.find((c) => currentStage(c) === tab);
 selected = first?.id || null;
 refresh();
-window.addEventListener('storage', refresh);
+startSync(() => { if (!changing) refresh(); });

@@ -22,11 +22,17 @@ async function callClaude({ key, model }, { system, user, maxTokens }) {
   };
   let resp;
   if (FALLBACK_OK.has(model)) {
-    resp = await client.beta.messages.create({
-      ...params,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-    });
+    try {
+      resp = await client.beta.messages.create({
+        ...params,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+      });
+    } catch (err) {
+      // 베타 기능이 막히거나 바뀐 경우(400)에는 일반 호출로 한 번 더 — 서비스가 멈추지 않게
+      if (err.status !== 400) throw err;
+      resp = await client.messages.create(params);
+    }
   } else {
     resp = await client.messages.create(params);
   }

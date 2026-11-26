@@ -1,9 +1,12 @@
-import { mountLayout } from './layout.js';
+import { mountLayout, toast } from './layout.js';
+import { requireRole } from './gate.js';
 import { mountChat } from './chat.js';
-import { load, setAiPaused, reset, currentStage, esc, fmtTime, stageTag, srcBadge } from './store.js';
+import { init, startSync, storageMode, load, setAiPaused, reset, currentStage, esc, fmtTime, stageTag, srcBadge } from './store.js';
 
 mountLayout('admin');
 mountChat('관리자');
+await requireRole('admin');
+await init('all');
 
 const $ = (s) => document.querySelector(s);
 const STAGES = ['정상', '검토필요', '차단후보'];
@@ -47,8 +50,13 @@ function renderBars() {
     return Object.fromEntries(STAGES.map((s) => [s, inDay.filter((c) => currentStage(c) === s).length]));
   });
   const max = Math.max(1, ...counts.map((c) => STAGES.reduce((a, s) => a + c[s], 0)));
-  $('#bars').innerHTML = counts.map((c, i) => `<div class="bar" title="${days[i].getMonth() + 1}/${days[i].getDate()} · ${STAGES.map((s) => `${s} ${c[s]}`).join(', ')}">${STAGES.map((s) => `<span class="b-${s}" style="height:${(c[s] / max) * 100}%"></span>`).join('')}</div>`).join('');
-  $('#bar-labels').innerHTML = days.map((d) => `<span>${d.getMonth() + 1}/${d.getDate()}</span>`).join('');
+  const total = (c) => STAGES.reduce((a, s) => a + c[s], 0);
+  const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+  // 칸 안에는 단계별 건수(칸이 너무 낮으면 생략), 아래 날짜 옆에는 하루 합계를 적는다
+  $('#bars').innerHTML = counts.map((c, i) => `<div class="bar" title="${md(days[i])} · ${STAGES.map((s) => `${s} ${c[s]}`).join(', ')}">${STAGES.map((s) => `<span class="b-${s}" style="height:${(c[s] / max) * 100}%">${c[s] && c[s] / max >= 0.14 ? c[s] : ''}</span>`).join('')}</div>`).join('');
+  $('#bars').setAttribute('role', 'img');
+  $('#bars').setAttribute('aria-label', `최근 7일 단계별 건수: ${days.map((d, i) => `${md(d)} ${total(counts[i])}건`).join(', ')}`);
+  $('#bar-labels').innerHTML = days.map((d, i) => `<span>${md(d)}<b>${total(counts[i])}건</b></span>`).join('');
 }
 
 function renderMis() {
@@ -99,13 +107,15 @@ async function renderStatus() {
 
 function refresh() { renderPause(); renderKpis(); renderBars(); renderMis(); renderHist(); }
 
-$('#pause').addEventListener('click', () => { setAiPaused(!load().settings.aiPaused); refresh(); });
-$('#hist-filter').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; histFilter = b.dataset.k; renderHist(); });
-$('#reset').addEventListener('click', () => {
-  if (!confirm('이 브라우저에 저장된 민원·이력을 모두 지우고 [가상 예시] 10건으로 되돌릴까요?')) return;
-  reset(); refresh();
+$('#pause').addEventListener('click', async () => {
+  try { await setAiPaused(!load().settings.aiPaused); refresh(); } catch (e) { toast(`바꾸지 못했습니다(${e.message})`); }
 });
-window.addEventListener('storage', refresh);
+$('#hist-filter').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; histFilter = b.dataset.k; renderHist(); });
+$('#reset').addEventListener('click', async () => {
+  if (!confirm(`${storageMode() === 'server' ? '서버에 저장된' : '이 브라우저에 저장된'} 민원·이력을 모두 지우고 [가상 예시] 10건으로 되돌릴까요?`)) return;
+  try { await reset(); refresh(); } catch (e) { toast(`되돌리지 못했습니다(${e.message})`); }
+});
+startSync(refresh);
 refresh();
 renderStats();
 renderStatus();

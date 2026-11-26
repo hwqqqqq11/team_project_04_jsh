@@ -1,9 +1,10 @@
-import { mountLayout } from './layout.js';
+import { mountLayout, toast } from './layout.js';
 import { mountChat } from './chat.js';
-import { load, addComplaint, appeal, esc, fmtTime } from './store.js';
+import { init, load, addComplaint, appeal, esc, fmtTime } from './store.js';
 
 mountLayout('citizen');
 mountChat('민원인');
+await init('mine');
 
 const APPEAL_DAYS = 7; // [팀 설계안] 소명 기한 — 시제품 기준
 const $ = (s) => document.querySelector(s);
@@ -41,26 +42,28 @@ async function classify(text) {
   const r = await fetch('/api/classify', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, aiPaused: settings.aiPaused }),
+    signal: AbortSignal.timeout(50000),
   });
   const d = await r.json();
   if (!r.ok) throw new Error(d.error || `오류 ${r.status}`);
   return d;
 }
 
-function busy(on, label = '확인 중…') {
+function busy(on, label = 'AI가 글을 확인하는 중… (길면 30초쯤 걸려요)') {
   submitBtn.disabled = on;
   submitBtn.textContent = on ? label : '제출하기';
 }
 
-function finish(result, choice, guided) {
+async function finish(result, choice, guided) {
   const c = {
     id: `c-${Date.now()}`, mine: true, createdAt: Date.now(), title: titleEl.value.trim() || '(제목 없음)',
     maskedText: result.maskedText, hiddenText: result.hiddenText, softened: result.softened, summary: result.summary,
     stage: result.stage, mode: result.mode, note: result.note, agree: result.agree,
     first: result.first, second: result.second, fixes: result.fixes, piiFound: result.piiFound,
-    choice, guided, final: null, appeal: null,
+    choice, guided, final: null, appeal: null, sig: result.sig,
   };
-  addComplaint(c);
+  try { await addComplaint(c); }
+  catch (err) { errEl.textContent = `접수하지 못했습니다(${err.message}). 잠시 뒤 다시 제출해 주세요.`; return; }
   form.hidden = true;
   done.hidden = false;
   done.innerHTML = `
@@ -91,7 +94,7 @@ modal.addEventListener('click', async (e) => {
   if (!b) return;
   const choice = b.dataset.choice;
   closeModal();
-  if (choice === '그대로') return finish(last, '그대로', true);
+  if (choice === '그대로') return await finish(last, '그대로', true);
   if (choice === '직접') {
     editingAfterGuide = true;
     $('#text-help').textContent = '표현을 고친 뒤 다시 제출하세요. 요구 내용은 그대로 두셔도 됩니다.';
@@ -103,7 +106,7 @@ modal.addEventListener('click', async (e) => {
   busy(true, '고친 글로 접수 중…');
   try {
     const again = await classify(textEl.value);
-    finish(again, '제안대로', true);
+    await finish(again, '제안대로', true);
   } catch (err) {
     errEl.textContent = `다시 확인하지 못했습니다(${err.message}). 그대로 제출하거나 잠시 뒤 다시 시도하세요.`;
   } finally { busy(false); }
@@ -117,9 +120,9 @@ form.addEventListener('submit', async (e) => {
   try {
     last = await classify(textEl.value);
     if (last.stage === '차단후보') openModal(last);
-    else finish(last, editingAfterGuide ? '직접' : '없음', editingAfterGuide);
+    else await finish(last, editingAfterGuide ? '직접' : '없음', editingAfterGuide);
   } catch (err) {
-    errEl.textContent = `제출하지 못했습니다(${err.message}). 인터넷 연결을 확인하고 다시 눌러 주세요.`;
+    errEl.textContent = err.name === 'TimeoutError' ? '시간이 너무 오래 걸렸습니다. 잠시 뒤 다시 제출해 주세요.' : `제출하지 못했습니다(${err.message}). 인터넷 연결을 확인하고 다시 눌러 주세요.`;
   } finally { busy(false); }
 });
 
@@ -144,12 +147,12 @@ function renderMine() {
     }
     return `<div class="row" style="cursor:default;grid-template-columns:1fr"><div><div class="row-title">${esc(c.title)}</div><div class="caption-sm">${fmtTime(c.createdAt)}${c.choice !== '없음' ? ` · 안내 창 선택: ${esc(c.choice)}` : ''}</div><div style="margin-top:8px">${status}</div>${more}</div></div>`;
   }).join('');
-  box.querySelectorAll('form.appeal').forEach((f) => f.addEventListener('submit', (e) => {
+  box.querySelectorAll('form.appeal').forEach((f) => f.addEventListener('submit', async (e) => {
     e.preventDefault();
     const t = f.querySelector('textarea').value.trim();
     if (!t) return;
-    appeal(f.dataset.id, t);
-    renderMine();
+    try { await appeal(f.dataset.id, t); renderMine(); }
+    catch (err) { toast(`소명을 내지 못했습니다(${err.message})`); }
   }));
 }
 renderMine();
